@@ -332,7 +332,7 @@ return [
         'close' => 'Schließen',
         'add_name' => ':name hinzufügen',
         'create' => 'Erstellen',
-        'create_name' => 'Erstelle :name',
+        'create_name' => ':name erstellen',
         'update' => 'Speichern',
         'update_name' => ':name bearbeiten',
         'preview' => 'Vorschau',
