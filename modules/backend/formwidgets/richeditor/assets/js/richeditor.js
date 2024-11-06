@@ -233,11 +233,19 @@
 
         this.editor = this.$textarea.data('froala.editor')
 
+        // Stop unnecessary "change" events from making it to the field element;
+        // only the textarea should be able to trigger the change event.
+        this.editor.$box.on('change', function (e) {
+            e.stopPropagation()
+        });
+
         if (this.options.readOnly) {
             this.editor.edit.off()
         }
 
         this.$el.on('keydown', '.fr-view figure', this.proxy(this.onFigureKeydown))
+
+        Snowboard.globalEvent("formwidgets.richeditor.init",this)
     }
 
     RichEditor.prototype.dispose = function() {
@@ -403,7 +411,7 @@
     }
 
     RichEditor.prototype.onChange = function(ev) {
-        this.$form.trigger('change')
+        this.$textarea.trigger('change')
     }
 
     /*

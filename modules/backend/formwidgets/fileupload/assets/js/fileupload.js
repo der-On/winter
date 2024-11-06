@@ -48,7 +48,19 @@
         }
 
         this.$el.one('dispose-control', this.proxy(this.dispose))
-        this.$uploadButton = $('.upload-button', this.$el)
+
+        this.$clickableElements = []
+
+        const uploadButtonEl = $('.upload-button', this.$el).get(0)
+        if (uploadButtonEl) {
+            this.$clickableElements.push(uploadButtonEl)
+        }
+
+        const uploadEmptyMessageEl = $('div.upload-empty-message', this.$el).get(0)
+        if (uploadEmptyMessageEl) {
+            this.$clickableElements.push(uploadEmptyMessageEl)
+        }
+
         this.$filesContainer = $('.upload-files-container', this.$el)
         this.uploaderOptions = {}
 
@@ -79,7 +91,7 @@
         this.$el.removeData('oc.fileUpload')
 
         this.$el = null
-        this.$uploadButton = null
+        this.$clickableElements = null
         this.$filesContainer = null
         this.uploaderOptions = null
 
@@ -98,7 +110,7 @@
         this.uploaderOptions = {
             url: this.options.url,
             paramName: this.options.paramName,
-            clickable: this.$uploadButton.get(0),
+            clickable: this.$clickableElements,
             previewsContainer: this.$filesContainer.get(0),
             maxFiles: !this.options.isMulti ? 1 : null,
             maxFilesize: this.options.maxFilesize,
@@ -135,6 +147,8 @@
         this.dropzone.on('sending', this.proxy(this.onUploadSending))
         this.dropzone.on('success', this.proxy(this.onUploadSuccess))
         this.dropzone.on('error', this.proxy(this.onUploadError))
+
+        Snowboard.globalEvent("formwidgets.fileupload.initUploader", this);
     }
 
     FileUpload.prototype.onResizeFileInfo = function(file) {
@@ -219,6 +233,9 @@
         this.$el.closest('[data-field-name]').trigger('change.oc.formwidget')
     }
 
+    /*
+     * Add the required additional data to the fileupload request
+     */
     FileUpload.prototype.addExtraFormData = function(formData) {
         if (this.options.extraData) {
             $.each(this.options.extraData, function (name, value) {
@@ -226,10 +243,13 @@
             })
         }
 
+        // Add the data from the containing form element to the upload request to
+        // ensure that the widget is properly initialized to handle the upload
         var $form = this.$el.closest('form')
         if ($form.length > 0) {
-            $.each($form.serializeArray(), function (index, field) {
-                formData.append(field.name, field.value)
+            var requestParentData = $form.getRequestParentData()
+            $.each(requestParentData, function (key) {
+                formData.append(key, this)
             })
         }
     }

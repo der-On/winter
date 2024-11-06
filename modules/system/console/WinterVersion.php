@@ -1,6 +1,5 @@
 <?php namespace System\Console;
 
-use App;
 use System\Classes\UpdateManager;
 
 /**
@@ -15,7 +14,7 @@ use System\Classes\UpdateManager;
  * @author Ben Thomson
  * @author Winter CMS
  */
-class WinterVersion extends \Illuminate\Console\Command
+class WinterVersion extends \Winter\Storm\Console\Command
 {
     /**
      * @var string The console command description.
@@ -26,7 +25,9 @@ class WinterVersion extends \Illuminate\Console\Command
      * @var string The name and signature of the console command.
      */
     protected $signature = 'winter:version
-                            {--changes : Include the list of changes between this install and the expected files for the detected build.}';
+        {--changes : Include the list of changes between this install and the expected files for the detected build.}
+        {--o|only-version : Return only the build version number.}
+    ';
 
     /**
      * Create a new command instance.
@@ -42,30 +43,39 @@ class WinterVersion extends \Illuminate\Console\Command
     /**
      * Execute the console command.
      *
-     * @return mixed
+     * @return void
      */
     public function handle()
     {
-        $this->comment('*** Detecting Winter CMS build...');
+        if (!$this->option('only-version')) {
+            $this->comment('*** Detecting Winter CMS build...');
+        }
 
-        if (!App::hasDatabase()) {
+        if (!$this->laravel->hasDatabase()) {
             $build = UpdateManager::instance()->getBuildNumberManually($this->option('changes'));
 
             // Skip setting the build number if no database is detected to set it within
-            $this->comment('*** No database detected - skipping setting the build number.');
+            if (!$this->option('only-version')) {
+                $this->comment('*** No database detected - skipping setting the build number.');
+            }
         } else {
             $build = UpdateManager::instance()->setBuildNumberManually($this->option('changes'));
         }
 
+        if ($this->option('only-version')) {
+            $this->line($build['build']);
+            return 0;
+        }
+
         if (!$build['confident']) {
             $this->warn('*** We could not accurately determine your Winter CMS build due to the number of modifications. The closest detected build is Winter CMS build ' . $build['build'] . '.');
-        } else if ($build['modified']) {
+        } elseif ($build['modified']) {
             $this->info('*** Detected a modified version of Winter CMS build ' . $build['build'] . '.');
         } else {
             $this->info('*** Detected Winter CMS build ' . $build['build'] . '.');
         }
 
-        if ($this->option('changes')) {
+        if (!empty($build['changes']) && $this->option('changes')) {
             $this->line('');
             $this->comment('We have detected the following modifications:');
 
@@ -91,7 +101,7 @@ class WinterVersion extends \Illuminate\Console\Command
                 $this->line('');
                 $this->info('Files removed:');
 
-                foreach (array_keys($build['changes']['removed']) as $file) {
+                foreach ($build['changes']['removed'] as $file) {
                     $this->line(' - ' . $file);
                 }
             }

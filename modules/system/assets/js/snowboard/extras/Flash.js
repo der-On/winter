@@ -1,3 +1,5 @@
+import PluginBase from '../abstracts/PluginBase';
+
 /**
  * Provides flash messages for the CMS.
  *
@@ -15,18 +17,15 @@
  * @copyright 2021 Winter.
  * @author Ben Thomson <git@alfreido.com>
  */
-export default class Flash extends Snowboard.PluginBase {
+export default class Flash extends PluginBase {
     /**
      * Constructor.
      *
-     * @param {Snowboard} snowboard
      * @param {string} message
      * @param {string} type
      * @param {Number} duration
      */
-    constructor(snowboard, message, type, duration) {
-        super(snowboard);
-
+    construct(message, type, duration) {
         this.message = message;
         this.type = type || 'default';
         this.duration = Number(duration || 7);
@@ -55,7 +54,7 @@ export default class Flash extends Snowboard.PluginBase {
      *
      * This will ensure the flash message is removed and timeout is cleared if the module is removed.
      */
-    destructor() {
+    destruct() {
         if (this.timer !== null) {
             window.clearTimeout(this.timer);
         }
@@ -70,7 +69,7 @@ export default class Flash extends Snowboard.PluginBase {
             this.flashTimer = null;
         }
 
-        super.destructor();
+        super.destruct();
     }
 
     /**
@@ -114,7 +113,7 @@ export default class Flash extends Snowboard.PluginBase {
         this.snowboard.transition(this.flash, 'hide', () => {
             this.flash.remove();
             this.flash = null;
-            this.destructor();
+            this.destruct();
         });
     }
 

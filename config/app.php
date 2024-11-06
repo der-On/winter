@@ -14,9 +14,13 @@ return [
     | You can create a CMS page with route "/error" to set the contents
     | of this page. Otherwise a default error page is shown.
     |
+    | IMPORTANT: Always have debug mode set to false in production environments
+    | as it can reveal sensitive information about your application and
+    | infrastructure to untrusted users through more detailed errors.
+    |
     */
 
-    'debug' => true,
+    'debug' => env('APP_DEBUG', true),
 
     /*
     |--------------------------------------------------------------------------
@@ -26,9 +30,10 @@ return [
     | This value is the name of your application. This value is used when the
     | framework needs to place the application's name in a notification or
     | any other location as required by the application or its packages.
+    |
     */
 
-    'name' => 'Winter CMS',
+    'name' => env('APP_NAME', 'Winter CMS'),
 
     /*
     |--------------------------------------------------------------------------
@@ -41,7 +46,7 @@ return [
     |
     */
 
-    'url' => 'http://localhost',
+    'url' => env('APP_URL', 'http://localhost'),
 
     /*
     |--------------------------------------------------------------------------
@@ -58,6 +63,19 @@ return [
     */
 
     'asset_url' => env('ASSET_URL', null),
+    
+    /*
+    |--------------------------------------------------------------------------
+    | Temporary Path
+    |--------------------------------------------------------------------------
+    |
+    | This is used to set the application's temporary path. Normally this value
+    | is set automatically by the application, however on some systems you
+    | may need to change it (Laravel Vapor / read-only systems: /tmp).
+    |
+    */
+
+    'tempPath' => env('APP_TEMP_PATH', null),
 
     /*
     |--------------------------------------------------------------------------
@@ -105,14 +123,18 @@ return [
     |  - array: An array of proxies to trust
     |
     | Examples:
-    |  - To trust all proxies:
+    |  - To trust any proxy (i.e. a single proxy with an unknown IP address):
     |
-    |      'trustedProxies' => '*'
+    |      'trustedProxies' => '*',
+    |
+    |  - To trust all proxies (i.e. AWS ELB behind CloudFront):
+    |
+    |      'trustedProxies' => '**',
     |
     |  - To trust two IP addresses as proxies
     |
-    |      'trustedProxies' => '192.168.1.1, 192.168.1.2'
-    |      'trustedProxies' => ['192.168.1.1', '192.168.1.2']
+    |      'trustedProxies' => '192.168.1.1, 192.168.1.2',
+    |      'trustedProxies' => ['192.168.1.1', '192.168.1.2'],
     */
 
     'trustedProxies' => null,
@@ -132,7 +154,9 @@ return [
     |   - Illuminate\Http\Request::HEADER_X_FORWARDED_HOST - trust only the proxy hostname
     |   - Illuminate\Http\Request::HEADER_X_FORWARDED_PORT - trust only the proxy port
     |   - Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO - trust only the proxy protocol
+    |   - Illuminate\Http\Request::HEADER_X_FORWARDED_PREFIX - trust only the proxy prefix
     |   - Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB - trust Amazon Elastic Load Balancing headers
+    |   - Illuminate\Http\Request::HEADER_X_FORWARDED_TRAEFIK - trust Traefik reverse proxy headers
     |
     | Examples:
     |   - To trust only the hostname, use the following:
@@ -205,6 +229,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Faker Locale
+    |--------------------------------------------------------------------------
+    |
+    | This locale will be used by the Faker PHP library when generating fake
+    | data for your database seeds. For example, this will be used to get
+    | localized telephone numbers, street address information and more.
+    |
+    */
+
+    'faker_locale' => 'en_US',
+
+    /*
+    |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
     |
@@ -214,8 +251,7 @@ return [
     |
     */
 
-    'key' => 'CHANGE_ME!!!!!!!!!!!!!!!!!!!!!!!',
-
+    'key' => env('APP_KEY'),
     'cipher' => 'AES-256-CBC',
 
     /*
@@ -233,7 +269,7 @@ return [
 
         // 'Illuminate\Html\HtmlServiceProvider', // Example
 
-        'System\ServiceProvider',
+        System\ServiceProvider::class,
     ]),
 
     /*
@@ -268,9 +304,6 @@ return [
     */
 
     'aliases' => array_merge(include(base_path('modules/system/aliases.php')), [
-
         // 'Str' => 'Illuminate\Support\Str', // Example
-
     ]),
-
 ];

@@ -1,3 +1,5 @@
+import Singleton from '../../abstracts/Singleton';
+
 /**
  * Enable Data Attributes API for AJAX requests.
  *
@@ -8,11 +10,7 @@
  * @copyright 2021 Winter.
  * @author Ben Thomson <git@alfreido.com>
  */
-if (window.Snowboard === undefined) {
-    throw new Error('Snowboard must be loaded in order to use the Data Attributes plugin.');
-}
-
-class AttributeRequest extends Snowboard.Singleton {
+export default class AttributeRequest extends Singleton {
     /**
      * Listeners.
      *
@@ -49,10 +47,10 @@ class AttributeRequest extends Snowboard.Singleton {
      *
      * Detaches all handlers.
      */
-    destructor() {
+    destruct() {
         this.detachHandlers();
 
-        super.destructor();
+        super.destruct();
     }
 
     /**
@@ -113,7 +111,7 @@ class AttributeRequest extends Snowboard.Singleton {
     clickHandler(event) {
         let currentElement = event.target;
 
-        while (currentElement.tagName !== 'HTML') {
+        while (currentElement && currentElement.tagName !== 'HTML') {
             if (!currentElement.matches(
                 'a[data-request], button[data-request], input[type=button][data-request], input[type=submit][data-request]',
             )) {
@@ -204,6 +202,7 @@ class AttributeRequest extends Snowboard.Singleton {
             confirm: ('requestConfirm' in data) ? String(data.requestConfirm) : null,
             redirect: ('requestRedirect' in data) ? String(data.requestRedirect) : null,
             loading: ('requestLoading' in data) ? String(data.requestLoading) : null,
+            stripe: ('requestStripe' in data) ? data.requestStripe === 'true' : true,
             flash: ('requestFlash' in data),
             files: ('requestFiles' in data),
             browserValidate: ('requestBrowserValidate' in data),
@@ -305,7 +304,7 @@ class AttributeRequest extends Snowboard.Singleton {
 
         this.resetTrackInputTimer(element);
 
-        element.dataset.trackInput = window.setTimeout(() => {
+        element.dataset.inputTimer = window.setTimeout(() => {
             if (element.dataset.request) {
                 this.processRequestOnElement(element);
                 return;
@@ -325,11 +324,9 @@ class AttributeRequest extends Snowboard.Singleton {
     }
 
     resetTrackInputTimer(element) {
-        if (element.dataset.trackInput) {
-            window.clearTimeout(element.dataset.trackInput);
-            element.dataset.trackInput = null;
+        if (element.dataset.inputTimer) {
+            window.clearTimeout(element.dataset.inputTimer);
+            element.dataset.inputTimer = null;
         }
     }
 }
-
-Snowboard.addPlugin('attributeRequest', AttributeRequest);

@@ -1,10 +1,12 @@
+import Singleton from '../abstracts/Singleton';
+
 /**
  * Allows attaching a loading class on elements that an AJAX request is targeting.
  *
  * @copyright 2021 Winter.
  * @author Ben Thomson <git@alfreido.com>
  */
-export default class AttachLoading extends Snowboard.Singleton {
+export default class AttachLoading extends Singleton {
     /**
      * Defines dependenices.
      *
@@ -36,10 +38,12 @@ export default class AttachLoading extends Snowboard.Singleton {
             if (loadElements.length > 0) {
                 loadElements.forEach((element) => {
                     element.classList.add(this.getLoadingClass(element));
+                    element.disabled = true;
                 });
             }
         } else if (request.element.dataset.attachLoading !== undefined) {
             request.element.classList.add(this.getLoadingClass(request.element));
+            request.element.disabled = true;
         }
     }
 
@@ -53,10 +57,12 @@ export default class AttachLoading extends Snowboard.Singleton {
             if (loadElements.length > 0) {
                 loadElements.forEach((element) => {
                     element.classList.remove(this.getLoadingClass(element));
+                    element.disabled = false;
                 });
             }
         } else if (request.element.dataset.attachLoading !== undefined) {
             request.element.classList.remove(this.getLoadingClass(request.element));
+            request.element.disabled = false;
         }
     }
 

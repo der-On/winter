@@ -95,18 +95,9 @@ return [
         'smtp_username' => 'Nama pengguna',
         'smtp_password' => 'Sandi lewat',
         'smtp_port' => 'Porta SMTP',
-        'smtp_ssl' => 'Koneksi SSL diperlukan',
         'sendmail' => 'Sendmail',
         'sendmail_path' => 'Jalur Sendmail',
         'sendmail_path_comment' => 'Silakan tentukan jalur ke program sendmail.',
-        'mailgun' => 'Mailgun',
-        'mailgun_domain' => 'Ranah Mailgun',
-        'mailgun_domain_comment' => 'Silakan tentukan nama ranah Mailgun.',
-        'mailgun_secret' => 'Mailgun Secret',
-        'mailgun_secret_comment' => 'Masukan kunci API Mailgun.',
-        'mandrill' => 'Mandrill',
-        'mandrill_secret' => 'Mandrill Secret',
-        'mandrill_secret_comment' => 'Masukan kunci API Mandrill.'
     ],
     'mail_templates' => [
         'menu_label' => 'Acuan Surat',

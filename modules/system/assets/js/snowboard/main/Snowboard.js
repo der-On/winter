@@ -31,9 +31,17 @@ export default class Snowboard {
         this.plugins = {};
         this.listeners = {};
         this.foundBaseUrl = null;
-        this.domReady = false;
-
+        this.readiness = {
+            dom: false,
+        };
+        // Seal readiness from being added to further, but allow the properties to be modified.
+        Object.seal(this.readiness);
         this.attachAbstracts();
+
+        // Freeze the Snowboard class to prevent further modifications.
+        Object.freeze(Snowboard.prototype);
+        Object.freeze(this);
+
         this.loadUtilities();
         this.initialise();
 
@@ -55,6 +63,11 @@ export default class Snowboard {
     attachAbstracts() {
         this.PluginBase = PluginBase;
         this.Singleton = Singleton;
+
+        Object.freeze(this.PluginBase.prototype);
+        Object.freeze(this.PluginBase);
+        Object.freeze(this.Singleton.prototype);
+        Object.freeze(this.Singleton);
     }
 
     /**
@@ -79,7 +92,7 @@ export default class Snowboard {
                 this.initialiseSingletons();
             }
             this.globalEvent('ready');
-            this.domReady = true;
+            this.readiness.dom = true;
         });
     }
 
@@ -124,9 +137,6 @@ export default class Snowboard {
         }
 
         this.plugins[lowerName] = new PluginLoader(lowerName, this, instance);
-        const callback = (...parameters) => this.plugins[lowerName].getInstance(...parameters);
-        this[name] = callback;
-        this[lowerName] = callback;
 
         this.debug(`Plugin "${name}" registered`);
 
@@ -139,7 +149,7 @@ export default class Snowboard {
                 && plugin.dependenciesFulfilled()
                 && plugin.hasMethod('listens')
                 && Object.keys(plugin.callMethod('listens')).includes('ready')
-                && this.domReady
+                && this.readiness.dom
             ) {
                 const readyMethod = plugin.callMethod('listens').ready;
                 plugin.callMethod(readyMethod);
@@ -165,7 +175,7 @@ export default class Snowboard {
 
         // Call destructors for all instances
         this.plugins[lowerName].getInstances().forEach((instance) => {
-            instance.destructor();
+            instance.destruct();
         });
 
         delete this.plugins[lowerName];
@@ -213,11 +223,13 @@ export default class Snowboard {
      * @returns {PluginLoader}
      */
     getPlugin(name) {
-        if (!this.hasPlugin(name)) {
-            throw new Error(`No plugin called "${name}" has been registered.`);
+        const lowerName = name.toLowerCase();
+
+        if (!this.hasPlugin(lowerName)) {
+            throw new Error(`No plugin called "${lowerName}" has been registered.`);
         }
 
-        return this.plugins[name];
+        return this.plugins[lowerName];
     }
 
     /**
@@ -246,7 +258,7 @@ export default class Snowboard {
 
             const listeners = plugin.callMethod('listens');
 
-            if (typeof listeners[eventName] === 'string') {
+            if (typeof listeners[eventName] === 'string' || typeof listeners[eventName] === 'function') {
                 plugins.push(name);
             }
         });
@@ -263,7 +275,7 @@ export default class Snowboard {
      * @param {Function} callback
      */
     ready(callback) {
-        if (this.domReady) {
+        if (this.readiness.dom) {
             callback();
         }
 
@@ -349,13 +361,36 @@ export default class Snowboard {
                     return;
                 }
 
-                if (!instance[listenMethod]) {
-                    throw new Error(`Missing "${listenMethod}" method in "${name}" plugin`);
-                }
+                if (typeof listenMethod === 'function') {
+                    try {
+                        const result = listenMethod.apply(instance, parameters);
+                        if (result === false) {
+                            cancelled = true;
+                        }
+                    } catch (error) {
+                        this.error(
+                            `Error thrown in "${eventName}" event by "${name}" plugin.`,
+                            error,
+                        );
+                    }
+                } else if (typeof listenMethod === 'string') {
+                    if (!instance[listenMethod]) {
+                        throw new Error(`Missing "${listenMethod}" method in "${name}" plugin`);
+                    }
 
-                if (instance[listenMethod](...parameters) === false) {
-                    cancelled = true;
-                    this.debug(`Global event "${eventName}" cancelled by "${name}" plugin`);
+                    try {
+                        if (instance[listenMethod](...parameters) === false) {
+                            cancelled = true;
+                            this.debug(`Global event "${eventName}" cancelled by "${name}" plugin`);
+                        }
+                    } catch (error) {
+                        this.error(
+                            `Error thrown in "${eventName}" event by "${name}" plugin.`,
+                            error,
+                        );
+                    }
+                } else {
+                    this.error(`Listen method for "${eventName}" event in "${name}" plugin is not a function or string.`);
                 }
             });
         });
@@ -370,9 +405,16 @@ export default class Snowboard {
                     return;
                 }
 
-                if (listener(...parameters) === false) {
-                    cancelled = true;
-                    this.debug(`Global event "${eventName} cancelled by an ad-hoc listener.`);
+                try {
+                    if (listener(...parameters) === false) {
+                        cancelled = true;
+                        this.debug(`Global event "${eventName} cancelled by an ad-hoc listener.`);
+                    }
+                } catch (error) {
+                    this.error(
+                        `Error thrown in "${eventName}" event by an ad-hoc listener.`,
+                        error,
+                    );
                 }
             });
         }
@@ -415,12 +457,43 @@ export default class Snowboard {
 
             // Call event handler methods for all plugins, if they have a method specified for the event.
             plugin.getInstances().forEach((instance) => {
-                const instancePromise = instance[listenMethod](...parameters);
-                if (instancePromise instanceof Promise === false) {
-                    return;
-                }
+                if (typeof listenMethod === 'function') {
+                    try {
+                        const instancePromise = listenMethod.apply(instance, parameters);
 
-                promises.push(instancePromise);
+                        if (instancePromise instanceof Promise === false) {
+                            return;
+                        }
+
+                        promises.push(instancePromise);
+                    } catch (error) {
+                        this.error(
+                            `Error thrown in "${eventName}" event by "${name}" plugin.`,
+                            error,
+                        );
+                    }
+                } else if (typeof listenMethod === 'string') {
+                    if (!instance[listenMethod]) {
+                        throw new Error(`Missing "${listenMethod}" method in "${name}" plugin`);
+                    }
+
+                    try {
+                        const instancePromise = instance[listenMethod](...parameters);
+
+                        if (instancePromise instanceof Promise === false) {
+                            return;
+                        }
+
+                        promises.push(instancePromise);
+                    } catch (error) {
+                        this.error(
+                            `Error thrown in "${eventName}" promise event by "${name}" plugin.`,
+                            error,
+                        );
+                    }
+                } else {
+                    this.error(`Listen method for "${eventName}" event in "${name}" plugin is not a function or string.`);
+                }
             });
         });
 
@@ -429,12 +502,19 @@ export default class Snowboard {
             this.debug(`Found ${this.listeners[eventName].length} ad-hoc listener(s) for global promise event "${eventName}"`);
 
             this.listeners[eventName].forEach((listener) => {
-                const listenerPromise = listener(...parameters);
-                if (listenerPromise instanceof Promise === false) {
-                    return;
-                }
+                try {
+                    const listenerPromise = listener(...parameters);
+                    if (listenerPromise instanceof Promise === false) {
+                        return;
+                    }
 
-                promises.push(listenerPromise);
+                    promises.push(listenerPromise);
+                } catch (error) {
+                    this.error(
+                        `Error thrown in "${eventName}" promise event by an ad-hoc listener.`,
+                        error,
+                    );
+                }
             });
         }
 
@@ -446,21 +526,17 @@ export default class Snowboard {
     }
 
     /**
-     * Log a debug message.
+     * Log a styled message in the console.
      *
-     * These messages are only shown when debugging is enabled.
+     * Includes parameters and a stack trace.
      *
      * @returns {void}
      */
-    debug(message, ...parameters) {
-        if (!this.debugEnabled) {
-            return;
-        }
-
+    logMessage(color, bold, message, ...parameters) {
         /* eslint-disable */
         console.groupCollapsed(
             '%c[Snowboard]',
-            'color: rgb(45, 167, 199); font-weight: normal;',
+            `color: ${color}; font-weight: ${(bold) ? 'bold' : 'normal'};`,
             message
         );
         if (parameters.length) {
@@ -484,5 +560,38 @@ export default class Snowboard {
         }
         console.groupEnd();
         /* eslint-enable */
+    }
+
+    /**
+     * Log a message.
+     *
+     * @returns {void}
+     */
+    log(message, ...parameters) {
+        this.logMessage('rgb(45, 167, 199)', false, message, ...parameters);
+    }
+
+    /**
+     * Log a debug message.
+     *
+     * These messages are only shown when debugging is enabled.
+     *
+     * @returns {void}
+     */
+    debug(message, ...parameters) {
+        if (!this.debugEnabled) {
+            return;
+        }
+
+        this.logMessage('rgb(45, 167, 199)', false, message, ...parameters);
+    }
+
+    /**
+     * Logs an error message.
+     *
+     * @returns {void}
+     */
+    error(message, ...parameters) {
+        this.logMessage('rgb(229, 35, 35)', true, message, ...parameters);
     }
 }

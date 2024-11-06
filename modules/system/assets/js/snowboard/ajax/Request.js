@@ -1,3 +1,5 @@
+import PluginBase from '../abstracts/PluginBase';
+
 /**
  * Request plugin.
  *
@@ -6,33 +8,47 @@
  * @copyright 2021 Winter.
  * @author Ben Thomson <git@alfreido.com>
  */
-if (window.Snowboard === undefined) {
-    throw new Error('Snowboard must be loaded in order to use the Request plugin.');
-}
-
-class Request extends Snowboard.PluginBase {
+export default class Request extends PluginBase {
     /**
      * Constructor.
      *
-     * @param {Snowboard} snowboard
+     * The constructor accepts 2 or 3 parameters.
+     *
+     * If 2 parameters are provided, the first parameter is the handler name and the second
+     * parameter is the options. This assumes that this is a detached AJAX request not connected to
+     * an element.
+     *
+     * If 3 parameters are provided, the first parameter is an element or a selector, and the second
+     * and third parameters are the handler and options, respectively.
+     *
      * @param {HTMLElement|string} element
-     * @param {string} handler
+     * @param {string|Object} handler
      * @param {Object} options
      */
-    constructor(snowboard, element, handler, options) {
-        super(snowboard);
-
+    construct(element, handler, options) {
         if (typeof element === 'string') {
-            const matchedElement = document.querySelector(element);
-            if (matchedElement === null) {
-                throw new Error(`No element was found with the given selector: ${element}`);
+            // Allow the element to be a handler name.
+            // This assumes the request is being made against no element, and the handler parameter
+            // will contain options.
+            if (this.isHandlerName(element)) {
+                this.element = null;
+                this.handler = element;
+                this.options = handler || {};
+            } else {
+                const matchedElement = document.querySelector(element);
+                if (matchedElement === null) {
+                    throw new Error(`No element was found with the given selector: ${element}`);
+                }
+                this.element = matchedElement;
+                this.handler = handler;
+                this.options = options || {};
             }
-            this.element = matchedElement;
         } else {
             this.element = element;
+            this.handler = handler;
+            this.options = options || {};
         }
-        this.handler = handler;
-        this.options = options || {};
+
         this.fetchOptions = {};
         this.responseData = null;
         this.responseError = null;
@@ -135,7 +151,7 @@ class Request extends Snowboard.PluginBase {
             throw new Error('The AJAX handler name is not specified.');
         }
 
-        if (!this.handler.match(/^(?:\w+:{2})?on*/)) {
+        if (!this.isHandlerName(this.handler)) {
             throw new Error('Invalid AJAX handler name. The correct handler name format is: "onEvent".');
         }
     }
@@ -201,13 +217,17 @@ class Request extends Snowboard.PluginBase {
                         if (response.headers.has('Content-Type') && response.headers.get('Content-Type').includes('/json')) {
                             response.json().then(
                                 (responseData) => {
-                                    reject(this.renderError(
-                                        responseData.message,
-                                        responseData.exception,
-                                        responseData.file,
-                                        responseData.line,
-                                        responseData.trace,
-                                    ));
+                                    if (responseData.message && responseData.exception) {
+                                        reject(this.renderError(
+                                            responseData.message,
+                                            responseData.exception,
+                                            responseData.file,
+                                            responseData.line,
+                                            responseData.trace,
+                                        ));
+                                    } else {
+                                        reject(responseData);
+                                    }
                                 },
                                 (error) => {
                                     reject(this.renderError(`Unable to parse JSON response: ${error}`));
@@ -281,7 +301,7 @@ class Request extends Snowboard.PluginBase {
         return new Promise((resolve, reject) => {
             if (typeof this.options.beforeUpdate === 'function') {
                 if (this.options.beforeUpdate.apply(this, [response]) === false) {
-                    reject();
+                    resolve();
                     return;
                 }
             }
@@ -330,7 +350,7 @@ class Request extends Snowboard.PluginBase {
                     );
                 },
                 () => {
-                    reject();
+                    resolve();
                 },
             );
         });
@@ -361,6 +381,8 @@ class Request extends Snowboard.PluginBase {
                 } else if (selector.substr(0, 1) === '^') {
                     mode = 'prepend';
                     selector = selector.substr(1);
+                } else if (selector.substr(0, 1) !== '#' && selector.substr(0, 1) !== '.') {
+                    mode = 'noop';
                 }
 
                 const elements = document.querySelectorAll(selector);
@@ -372,6 +394,8 @@ class Request extends Snowboard.PluginBase {
                                 break;
                             case 'prepend':
                                 element.innerHTML = content + element.innerHTML;
+                                break;
+                            case 'noop':
                                 break;
                             case 'replace':
                             default:
@@ -407,7 +431,7 @@ class Request extends Snowboard.PluginBase {
      */
     processResponse(response) {
         if (this.options.success && typeof this.options.success === 'function') {
-            if (!this.options.success(this.responseData, this)) {
+            if (this.options.success(this.responseData, this) === false) {
                 return;
             }
         }
@@ -452,7 +476,7 @@ class Request extends Snowboard.PluginBase {
      */
     processError(error) {
         if (this.options.error && typeof this.options.error === 'function') {
-            if (!this.options.error(this.responseError, this)) {
+            if (this.options.error(this.responseError, this) === false) {
                 return;
             }
         }
@@ -477,12 +501,14 @@ class Request extends Snowboard.PluginBase {
         if (error instanceof Error) {
             this.processErrorMessage(error.message);
         } else {
+            let skipError = false;
+
             // Process validation errors
             if (error.X_WINTER_ERROR_FIELDS) {
-                this.processValidationErrors(error.X_WINTER_ERROR_FIELDS);
+                skipError = this.processValidationErrors(error.X_WINTER_ERROR_FIELDS);
             }
 
-            if (error.X_WINTER_ERROR_MESSAGE) {
+            if (error.X_WINTER_ERROR_MESSAGE && !skipError) {
                 this.processErrorMessage(error.X_WINTER_ERROR_MESSAGE);
             }
         }
@@ -600,12 +626,16 @@ class Request extends Snowboard.PluginBase {
     processValidationErrors(fields) {
         if (typeof this.options.handleValidationErrors === 'function') {
             if (this.options.handleValidationErrors.apply(this, [this.form, fields]) === false) {
-                return;
+                return true;
             }
         }
 
         // Allow plugins to cancel the validation errors being handled
-        this.snowboard.globalEvent('ajaxValidationErrors', this.form, fields, this);
+        if (this.snowboard.globalEvent('ajaxValidationErrors', this.form, fields, this) === false) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -682,10 +712,16 @@ class Request extends Snowboard.PluginBase {
             event.responseError = this.responseError;
             this.element.dispatchEvent(event);
         }
+
+        // Fire off the destructor
+        this.destruct();
     }
 
     get form() {
         if (this.options.form) {
+            if (typeof this.options.form === 'string') {
+                return document.querySelector(this.options.form);
+            }
             return this.options.form;
         }
         if (!this.element) {
@@ -758,16 +794,48 @@ class Request extends Snowboard.PluginBase {
 
     get data() {
         const data = (typeof this.options.data === 'object') ? this.options.data : {};
-
         const formData = new FormData(this.form || undefined);
+
         if (Object.keys(data).length > 0) {
-            Object.entries(data).forEach((entry) => {
-                const [key, value] = entry;
-                formData.append(key, value);
-            });
+            this.createFormData(formData, data);
         }
 
         return formData;
+    }
+
+    /**
+     * Recursively adds data to a FormData object.
+     *
+     * This method is used internally to recursively add data to a FormData object, ensuring that
+     * objects and arrays are correctly prefixed and added as POST data.
+     *
+     * @param {FormData} formData
+     * @param {Object} data
+     * @param {string} prefix
+     * @returns {void}
+     */
+    createFormData(formData, data, prefix = '') {
+        if (typeof data !== 'object') {
+            formData.append(prefix, data);
+            return;
+        }
+
+        if (Array.isArray(data) && prefix !== '') {
+            data.forEach((item) => {
+                this.createFormData(formData, item, `${prefix}[]`);
+            });
+            return;
+        }
+
+        Object.entries(data).forEach((entry) => {
+            const [key, value] = entry;
+
+            this.createFormData(
+                formData,
+                value,
+                (prefix !== '') ? `${prefix}[${key}]` : key,
+            );
+        });
     }
 
     get confirm() {
@@ -804,6 +872,14 @@ class Request extends Snowboard.PluginBase {
         error.trace = trace || [];
         return error;
     }
-}
 
-Snowboard.addPlugin('request', Request);
+    /**
+     * Checks a given string to see if it is a valid AJAX handler name.
+     *
+     * @param {String} name
+     * @returns {Boolean}
+     */
+    isHandlerName(name) {
+        return /^(?:\w+:{2})?on[A-Z0-9]/.test(name);
+    }
+}

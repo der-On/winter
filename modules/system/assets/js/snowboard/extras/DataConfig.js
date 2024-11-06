@@ -1,3 +1,5 @@
+import PluginBase from '../abstracts/PluginBase';
+
 /**
  * Data configuration provider.
  *
@@ -7,18 +9,16 @@
  * @copyright 2022 Winter.
  * @author Ben Thomson <git@alfreido.com>
  */
-export default class DataConfig extends Snowboard.PluginBase {
+export default class DataConfig extends PluginBase {
     /**
      * Constructor.
      *
-     * @param {Snowboard} snowboard
-     * @param {Snowboard.PluginBase} instance
+     * @param {PluginBase} instance
      * @param {HTMLElement} element
+     * @param {Object} localConfig
      */
-    constructor(snowboard, instance, element) {
-        super(snowboard);
-
-        if (instance instanceof Snowboard.PluginBase === false) {
+    construct(instance, element, localConfig) {
+        if (instance instanceof PluginBase === false) {
             throw new Error('You must provide a Snowboard plugin to enable data configuration');
         }
         if (element instanceof HTMLElement === false) {
@@ -27,6 +27,9 @@ export default class DataConfig extends Snowboard.PluginBase {
 
         this.instance = instance;
         this.element = element;
+        this.localConfig = localConfig || {};
+        this.instanceConfig = {};
+        this.acceptedConfigs = {};
         this.refresh();
     }
 
@@ -67,6 +70,7 @@ export default class DataConfig extends Snowboard.PluginBase {
 
         if (persist === true) {
             this.element.dataset[config] = value;
+            this.localConfig[config] = value;
         }
     }
 
@@ -153,6 +157,12 @@ export default class DataConfig extends Snowboard.PluginBase {
         for (const key in this.element.dataset) {
             if (this.acceptedConfigs === true || this.acceptedConfigs.includes(key)) {
                 config[key] = this.coerceValue(this.element.dataset[key]);
+            }
+        }
+
+        for (const key in this.localConfig) {
+            if (this.acceptedConfigs === true || this.acceptedConfigs.includes(key)) {
+                config[key] = this.localConfig[key];
             }
         }
         /* eslint-enable */

@@ -1,11 +1,13 @@
-<?php namespace Cms\Models;
+<?php
 
-use Lang;
-use Model;
+namespace Cms\Models;
+
 use Cms\Classes\Theme as CmsTheme;
-use System\Classes\CombineAssets;
 use Exception;
+use Illuminate\Support\Facades\Lang;
+use System\Classes\CombineAssets;
 use System\Models\File;
+use Winter\Storm\Database\Model;
 
 /**
  * Customization data used by a theme
@@ -113,19 +115,22 @@ class ThemeData extends Model
     {
         $data = (array) $this->data + $this->getDefaultValues();
 
-        /*
-         * Repeater form fields store arrays and must be jsonable.
-         */
         foreach ($this->getFormFields() as $id => $field) {
             if (!isset($field['type'])) {
                 continue;
             }
 
+            /*
+             * Repeater and nested form fields store arrays and must be jsonable.
+             */
             if (in_array($field['type'], ['repeater', 'nestedform'])) {
                 $this->jsonable[] = $id;
-            }
-            elseif ($field['type'] === 'fileupload') {
-                $this->attachOne[$id] = File::class;
+            } elseif ($field['type'] === 'fileupload') {
+                if (array_get($field, 'multiple', false)) {
+                    $this->attachMany[$id] = File::class;
+                } else {
+                    $this->attachOne[$id] = File::class;
+                }
                 unset($data[$id]);
             }
         }

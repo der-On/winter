@@ -806,12 +806,8 @@
                 ev.preventDefault()
                 return
             }
-    
-            var fieldName = this.options.fieldName.indexOf('[') > -1
-                ? this.options.fieldName + '[TableData]'
-                : this.options.fieldName + 'TableData'
-    
-            data.options.data[fieldName] = this.dataSource.getAllData()
+
+            data.options.data[this.options.fieldName] = this.dataSource.getAllData()
         }
     }
 

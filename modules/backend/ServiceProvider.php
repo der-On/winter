@@ -1,6 +1,5 @@
 <?php namespace Backend;
 
-use App;
 use Backend;
 use BackendMenu;
 use BackendAuth;
@@ -20,19 +19,20 @@ class ServiceProvider extends ModuleServiceProvider
      */
     public function register()
     {
-        parent::register('backend');
+        parent::register();
 
+        $this->registerConsole();
         $this->registerMailer();
         $this->registerAssetBundles();
+        $this->registerBackendPermissions();
 
         /*
          * Backend specific
          */
-        if (App::runningInBackend()) {
+        if ($this->app->runningInBackend()) {
             $this->registerBackendNavigation();
             $this->registerBackendReportWidgets();
             $this->registerBackendWidgets();
-            $this->registerBackendPermissions();
             $this->registerBackendSettings();
         }
     }
@@ -45,6 +45,18 @@ class ServiceProvider extends ModuleServiceProvider
     public function boot()
     {
         parent::boot('backend');
+    }
+
+    /**
+     * Register console commands
+     */
+    protected function registerConsole()
+    {
+        $this->registerConsoleCommand('create.controller', \Backend\Console\CreateController::class);
+        $this->registerConsoleCommand('create.formwidget', \Backend\Console\CreateFormWidget::class);
+        $this->registerConsoleCommand('create.reportwidget', \Backend\Console\CreateReportWidget::class);
+        $this->registerConsoleCommand('user.create', \Backend\Console\UserCreate::class);
+        $this->registerConsoleCommand('winter.passwd', \Backend\Console\WinterPasswd::class);
     }
 
     /**
@@ -71,16 +83,16 @@ class ServiceProvider extends ModuleServiceProvider
             $combiner->registerBundle('~/modules/backend/widgets/table/assets/js/build.js');
             $combiner->registerBundle('~/modules/backend/widgets/mediamanager/assets/js/mediamanager-browser.js');
             $combiner->registerBundle('~/modules/backend/widgets/mediamanager/assets/less/mediamanager.less');
+            $combiner->registerBundle('~/modules/backend/widgets/reportcontainer/assets/less/reportcontainer.less');
+            $combiner->registerBundle('~/modules/backend/widgets/table/assets/less/table.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/codeeditor/assets/less/codeeditor.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/repeater/assets/less/repeater.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/codeeditor/assets/js/build.js');
             $combiner->registerBundle('~/modules/backend/formwidgets/fileupload/assets/less/fileupload.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/nestedform/assets/less/nestedform.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/richeditor/assets/js/build-plugins.js');
-            $combiner->registerBundle('~/modules/backend/formwidgets/colorpicker/assets/less/colorpicker.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/permissioneditor/assets/less/permissioneditor.less');
             $combiner->registerBundle('~/modules/backend/formwidgets/markdowneditor/assets/less/markdowneditor.less');
-            $combiner->registerBundle('~/modules/backend/formwidgets/sensitive/assets/less/sensitive.less');
 
             /*
              * Rich Editor is protected by DRM
@@ -201,21 +213,23 @@ class ServiceProvider extends ModuleServiceProvider
     protected function registerBackendWidgets()
     {
         WidgetManager::instance()->registerFormWidgets(function ($manager) {
-            $manager->registerFormWidget('Backend\FormWidgets\CodeEditor', 'codeeditor');
-            $manager->registerFormWidget('Backend\FormWidgets\RichEditor', 'richeditor');
-            $manager->registerFormWidget('Backend\FormWidgets\MarkdownEditor', 'markdown');
-            $manager->registerFormWidget('Backend\FormWidgets\FileUpload', 'fileupload');
-            $manager->registerFormWidget('Backend\FormWidgets\Relation', 'relation');
-            $manager->registerFormWidget('Backend\FormWidgets\DatePicker', 'datepicker');
-            $manager->registerFormWidget('Backend\FormWidgets\TimePicker', 'timepicker');
-            $manager->registerFormWidget('Backend\FormWidgets\ColorPicker', 'colorpicker');
-            $manager->registerFormWidget('Backend\FormWidgets\DataTable', 'datatable');
-            $manager->registerFormWidget('Backend\FormWidgets\RecordFinder', 'recordfinder');
-            $manager->registerFormWidget('Backend\FormWidgets\Repeater', 'repeater');
-            $manager->registerFormWidget('Backend\FormWidgets\TagList', 'taglist');
-            $manager->registerFormWidget('Backend\FormWidgets\MediaFinder', 'mediafinder');
-            $manager->registerFormWidget('Backend\FormWidgets\NestedForm', 'nestedform');
-            $manager->registerFormWidget('Backend\FormWidgets\Sensitive', 'sensitive');
+            $manager->registerFormWidget(\Backend\FormWidgets\CodeEditor::class, 'codeeditor');
+            $manager->registerFormWidget(\Backend\FormWidgets\ColorPicker::class, 'colorpicker');
+            $manager->registerFormWidget(\Backend\FormWidgets\DataTable::class, 'datatable');
+            $manager->registerFormWidget(\Backend\FormWidgets\DatePicker::class, 'datepicker');
+            $manager->registerFormWidget(\Backend\FormWidgets\FileUpload::class, 'fileupload');
+            $manager->registerFormWidget(\Backend\FormWidgets\IconPicker::class, 'iconpicker');
+            $manager->registerFormWidget(\Backend\FormWidgets\MarkdownEditor::class, 'markdown');
+            $manager->registerFormWidget(\Backend\FormWidgets\MediaFinder::class, 'mediafinder');
+            $manager->registerFormWidget(\Backend\FormWidgets\NestedForm::class, 'nestedform');
+            $manager->registerFormWidget(\Backend\FormWidgets\RecordFinder::class, 'recordfinder');
+            $manager->registerFormWidget(\Backend\FormWidgets\Relation::class, 'relation');
+            $manager->registerFormWidget(\Backend\FormWidgets\RelationManager::class, 'relationmanager');
+            $manager->registerFormWidget(\Backend\FormWidgets\Repeater::class, 'repeater');
+            $manager->registerFormWidget(\Backend\FormWidgets\RichEditor::class, 'richeditor');
+            $manager->registerFormWidget(\Backend\FormWidgets\Sensitive::class, 'sensitive');
+            $manager->registerFormWidget(\Backend\FormWidgets\TagList::class, 'taglist');
+            $manager->registerFormWidget(\Backend\FormWidgets\TimePicker::class, 'timepicker');
         });
     }
 

@@ -6,6 +6,7 @@ on:
     branches:
       - 1.0
       - 1.1
+      - 1.2
       - develop
 
 jobs:
@@ -26,7 +27,7 @@ jobs:
       - name: Install PHP and PHP Code Sniffer
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 7.3
+          php-version: 8.0
           extensions: curl, fileinfo, gd, mbstring, openssl, pdo, pdo_sqlite, sqlite3, xml, zip
           tools: phpcs
 
